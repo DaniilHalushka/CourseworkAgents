@@ -13,10 +13,10 @@ class PictureFilterAgent:
 
     async def filter_pictures_by_author_or_name(self, author=None, name=None):
         if author and name:
-            query = "MATCH (authorNode: Node {name: $author})-[:WROTE]->(pictureNode: Node {name: $name}) RETURN pictureNode"
+            query = "MATCH (authorNode: Node {name: $author})-[:nrel_write]->(pictureNode: Node {name: $name}) RETURN pictureNode"
             parameters = {"author": author, "name": name}
         elif author:
-            query = "MATCH (authorNode: Node {name: $author})-[:WROTE]->(pictureNode: Node) RETURN pictureNode"
+            query = "MATCH (authorNode: Node {name: $author})-[:nrel_write]->(pictureNode: Node) RETURN pictureNode"
             parameters = {"author": author}
         elif name:
             query = "MATCH (pictureNode: Node {name: $name}) RETURN pictureNode"
@@ -33,7 +33,7 @@ class PictureFilterAgent:
             query = (
                 "MATCH (requestNode: Class {name: $request_name}), (pictureNode: Node) "
                 "WHERE pictureNode.name IN $filtered_names "
-                "CREATE (requestNode)-[:FOUND_PICTURE]->(pictureNode)"
+                "CREATE (requestNode)-[:nrel_found_picture]->(pictureNode)"
             )
             parameters = {"request_name": request_name, "filtered_names": filtered_names}
             await self.execute_query(query, parameters)
