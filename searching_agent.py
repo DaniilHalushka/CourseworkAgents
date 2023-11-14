@@ -22,8 +22,8 @@ class SearchingAgentByTitleAndAuthor:
             await self.driver.close()
 
     async def get_initial_data(self):
-        author_query = "MATCH (n: Node)<-[:nrel_author]-(m: Class {name: 'concept_request'}) RETURN n.name"
-        date_query = "MATCH (n: Node)<-[:nrel_date]-(m: Class {name: 'concept_request'}) RETURN n.name"
+        author_query = "MATCH (n: Node)<-[:nrel_author]-(m: Node {name: 'current_request'}) RETURN n.name"
+        date_query = "MATCH (n: Node)<-[:nrel_date]-(m: Node {name: 'current_request'}) RETURN n.name"
 
         author_record = await self.driver.execute_query(author_query)
         date_record = await self.driver.execute_query(date_query)
@@ -57,7 +57,7 @@ class SearchingAgentByTitleAndAuthor:
         return names
 
     async def create_relationship_to_req(self, name):
-        query = f"MATCH (p: Node {{name: '{name}'}}), (req: Class {{name: 'concept_request'}}) CREATE (req)-[:nrel_context]->(p)"
+        query = f"MATCH (p: Node {{name: '{name}'}}), (req: Node {{name: 'current_request'}}) CREATE (req)-[:nrel_context]->(p)"
         await self.driver.execute_query(query)
 
     async def add_picture_to_req_context(self):
