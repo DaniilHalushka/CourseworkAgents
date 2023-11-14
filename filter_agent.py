@@ -1,53 +1,81 @@
 import asyncio
+
 from neo4j import AsyncGraphDatabase
 
 
-class PictureFilterAgent:
-    def __init__(self, uri, username, password):
-        self.driver = AsyncGraphDatabase.driver(uri, auth=(username, password))
+class Neo4jContextRequestManager:
+    def __init__(self, url, username, password, database_name):
+        self.painting_name = None
+        self.URL = url
+        self.USERNAME = username
+        self.PASSWORD = password
+        self.DATABASE_NAME = database_name
+        self.author = ""
+        self.date = ""
+        self.driver = None
 
-    async def execute_query(self, query, parameters=None):
+    async def connect_to_database(self):
+        self.driver = AsyncGraphDatabase.driver(
+            self.URL, auth=(self.USERNAME, self.PASSWORD), database=self.DATABASE_NAME
+        )
+
+    async def get_painting_name(self):
+        print("sojfwniej")
+        query = "MATCH (p:Node)<-[:nrel_context]-(cr:Class) RETURN p.name LIMIT 1"
+        print("sojfwniej")
+
+        record = await self.driver.execute_query(query)
+
+        self.painting_name = record.records[0]['p.name']
+
+        print("sojfwniej")
+
+    async def sort_and_remove_extra_context_requests(self):
+        print("ojqpef")
+        await self.connect_to_database()
+        print("efohqo")
+        await self.get_painting_name()
+        print("fwmoefo")
+
+        if not self.painting_name:
+            print("Не удалось получить картину.")
+            return
+
         async with self.driver.session() as session:
-            result = await session.run(query, parameters=parameters)
-            return result
+            await session.write_transaction(self._sort_and_remove_extra_context_requests)
 
-    async def filter_pictures_by_author_or_name(self, author=None, name=None):
-        if author and name:
-            query = "MATCH (authorNode: Node {name: $author})-[:nrel_write]->(pictureNode: Node {name: $name}) RETURN pictureNode"
-            parameters = {"author": author, "name": name}
-        elif author:
-            query = "MATCH (authorNode: Node {name: $author})-[:nrel_write]->(pictureNode: Node) RETURN pictureNode"
-            parameters = {"author": author}
-        elif name:
-            query = "MATCH (pictureNode: Node {name: $name}) RETURN pictureNode"
-            parameters = {"name": name}
-        else:
-            return []
+    async def _sort_and_remove_extra_context_requests(self, tx):
+        query = (
+                "MATCH (p:Node {name: '" + self.painting_name + "'})<-[:nrel_context]-(cr:Class) RETURN cr ORDER BY ID(cr)"
+        )
+        result = await self.driver.execute_query(
+            "MATCH (p:Node {name: '" + self.painting_name + "'})<-[:nrel_context]-(cr:Class) RETURN cr ORDER BY ID(cr)"
+        )
+        records = result.records
 
-        result = await self.execute_query(query, parameters)
-        return [record["pictureNode"]["name"] for record in result]
+        if len(records) > 1:
+            first_node_id = records[0]['cr'].id
 
-    async def filter_pictures_by_context(self, request_name, context_author=None, context_name=None):
-        if context_author or context_name:
-            filtered_names = await self.filter_pictures_by_author_or_name(context_author, context_name)
-            query = (
-                "MATCH (requestNode: Class {name: $request_name}), (pictureNode: Node) "
-                "WHERE pictureNode.name IN $filtered_names "
-                "CREATE (requestNode)-[:nrel_found_picture]->(pictureNode)"
-            )
-            parameters = {"request_name": request_name, "filtered_names": filtered_names}
-            await self.execute_query(query, parameters)
+            for record in records[1:]:
+                cr_node = record['cr']
+                await self._remove_context_relation(tx, cr_node)
+
+    async def _remove_context_relation(self, tx, context_request_node):
+        query = (
+                "MATCH (p:Node {name: '" + self.painting_name + "'})<-[r:nrel_context]-(cr:Class) WHERE ID(cr) <> " + str(
+            context_request_node.id) + " DELETE r"
+        )
+        await tx.run(query, painting_name=self.painting_name, context_request_id=context_request_node.id)
 
 
 async def main():
     uri = "bolt://localhost:7687"
-    username = "DANIIL"
+    user = "DANIIL"
     password = "12345678"
+    database = "vlad1"
 
-    filter_agent = PictureFilterAgent(uri, username, password)
-
-    await filter_agent.filter_pictures_by_context("concept_request", context_author="Leonardo da Vinci",
-                                                  context_name="Mona Lisa")
+    manager = Neo4jContextRequestManager(uri, user, password, database)
+    await manager.sort_and_remove_extra_context_requests()
 
 
 if __name__ == "__main__":
