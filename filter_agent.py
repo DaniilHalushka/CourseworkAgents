@@ -20,22 +20,15 @@ class Neo4jContextRequestManager:
         )
 
     async def get_painting_name(self):
-        print("sojfwniej")
         query = "MATCH (p:Node)<-[:nrel_context]-(cr:Class) RETURN p.name LIMIT 1"
-        print("sojfwniej")
 
         record = await self.driver.execute_query(query)
 
         self.painting_name = record.records[0]['p.name']
 
-        print("sojfwniej")
-
     async def sort_and_remove_extra_context_requests(self):
-        print("ojqpef")
         await self.connect_to_database()
-        print("efohqo")
         await self.get_painting_name()
-        print("fwmoefo")
 
         if not self.painting_name:
             print("Не удалось получить картину.")
@@ -62,8 +55,8 @@ class Neo4jContextRequestManager:
 
     async def _remove_context_relation(self, tx, context_request_node):
         query = (
-                "MATCH (p:Node {name: '" + self.painting_name + "'})<-[r:nrel_context]-(cr:Class) WHERE ID(cr) <> " + str(
-            context_request_node.id) + " DELETE r"
+                "MATCH (p:Node {name: '" + self.painting_name + "'})<-[r:nrel_context]-(cr:Class) WHERE ID(cr) <> "
+                + str(context_request_node.id) + " DELETE r"
         )
         await tx.run(query, painting_name=self.painting_name, context_request_id=context_request_node.id)
 
