@@ -20,7 +20,7 @@ class Neo4jContextRequestManager:
         )
 
     async def get_painting_name(self):
-        query = "MATCH (p:Node)<-[:nrel_context]-(cr:Node) RETURN p.name LIMIT 1"
+        query = "MATCH (p:Node)<-[:nrel_context]-(cr:Node) RETURN p.name"
 
         record = await self.driver.execute_query(query)
 
@@ -39,24 +39,24 @@ class Neo4jContextRequestManager:
 
     async def _sort_and_remove_extra_context_requests(self, tx):
         query = (
-                "MATCH (p:Node {name: '" + self.painting_name + "'})<-[:nrel_context]-(cr:Node) RETURN cr ORDER BY ID(cr)"
+                "MATCH (p:Node {name: '" + self.painting_name + "'})<-[:nrel_context]-(cr:Node) RETURN p ORDER BY ID(p)"
         )
         result = await self.driver.execute_query(
-            "MATCH (p:Node {name: '" + self.painting_name + "'})<-[:nrel_context]-(cr:Node) RETURN cr ORDER BY ID(cr)"
+            "MATCH (p:Node)<-[:nrel_context]-(cr:Node) RETURN p ORDER BY ID(p)"
         )
         records = result.records
 
         if len(records) > 1:
-            first_node_id = records[0]['cr'].id
+            first_node_id = records[0]['p'].id
 
             for record in records[1:]:
-                cr_node = record['cr']
+                cr_node = record['p']
                 await self._remove_context_relation(tx, cr_node)
 
     async def _remove_context_relation(self, tx, context_request_node):
+        print(context_request_node.id)
         query = (
-                "MATCH (p:Node {name: '" + self.painting_name + "'})<-[r:nrel_context]-(cr:Node) WHERE ID(cr) <> "
-                + str(context_request_node.id) + " DELETE r"
+                "MATCH (p:Node)<-[r:nrel_context]-(cr:Node) WHERE ID(p) = " + str(context_request_node.id) + " DELETE r"
         )
         await tx.run(query, painting_name=self.painting_name, context_request_id=context_request_node.id)
 

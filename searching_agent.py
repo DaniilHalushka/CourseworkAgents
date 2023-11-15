@@ -22,8 +22,8 @@ class SearchingAgentByTitleAndAuthor:
             await self.driver.close()
 
     async def get_initial_data(self):
-        author_query = "MATCH (n: Node)<-[:nrel_author]-(m: Node {name: 'current_request'}) RETURN n.name"
-        date_query = "MATCH (n: Node)<-[:nrel_date]-(m: Node {name: 'current_request'}) RETURN n.name"
+        author_query = "MATCH (n: Text)<-[:nrel_author]-(m: Node {name: 'current_request'}) RETURN n.name"
+        date_query = "MATCH (n: Text)<-[:nrel_date]-(m: Node {name: 'current_request'}) RETURN n.name"
 
         author_record = await self.driver.execute_query(author_query)
         date_record = await self.driver.execute_query(date_query)
